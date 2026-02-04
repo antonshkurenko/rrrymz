@@ -1,0 +1,123 @@
+# RSS Feeds – one URL per line, lines starting with # are comments
+#
+# Add your favorite news sources here. The Scout will fetch the latest
+# items and filter them by the last run date.
+
+# --- General Tech ---
+https://hnrss.org/frontpage
+https://feeds.arstechnica.com/arstechnica/index
+https://www.theverge.com/rss/index.xml
+https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml
+https://www.wired.com/feed/rss
+https://techcrunch.com/feed/
+https://www.technologyreview.com/feed/
+https://feeds.feedburner.com/TechCrunch/
+
+# --- AI / ML ---
+https://www.artificialintelligence-news.com/feed/
+https://syncedreview.com/feed/
+https://jack-clark.net/feed/
+https://bair.berkeley.edu/blog/feed.xml
+https://openai.com/blog/rss.xml
+https://deepmind.google/blog/rss.xml
+
+# --- Space ---
+https://www.space.com/feeds/all
+https://spacenews.com/feed/
+https://www.nasa.gov/rss/dyn/breaking_news.rss
+
+# --- Science ---
+https://www.nature.com/nature.rss
+https://www.sciencedaily.com/rss/all.xml
+https://phys.org/rss-feed/
+
+# --- Developer Tools / Programming ---
+https://blog.golang.org/feed.atom
+https://blog.rust-lang.org/feed.xml
+https://github.blog/feed/
+https://stackoverflow.blog/feed/
+https://martinfowler.com/feed.atom
+
+# --- Hardware & Chips ---
+https://www.anandtech.com/rss/
+https://www.tomshardware.com/feeds/all
+https://semianalysis.com/feed/
+
+# --- Cybersecurity ---
+https://krebsonsecurity.com/feed/
+https://www.schneier.com/feed/atom/
+https://thehackernews.com/feeds/posts/default
+https://feeds.feedburner.com/TheHackersNews
+
+# --- Business & Finance ---
+https://feeds.bloomberg.com/technology/news.rss
+https://www.ft.com/technology?format=rss
+https://fortune.com/feed/fortune-feeds/?id=3230629
+
+# --- Crypto (broad overview) ---
+https://cointelegraph.com/rss
+https://www.coindesk.com/arc/outboundfeeds/rss/
+
+# --- Geopolitics & Policy ---
+https://www.lawfaremedia.org/feed
+https://www.eff.org/rss/updates.xml
+https://techpolicy.press/feed/
+
+# --- Biology & Health ---
+https://www.statnews.com/feed/
+https://www.the-scientist.com/rss
+
+# --- Climate & Energy ---
+https://www.carbonbrief.org/feed
+https://cleantechnica.com/feed/
+
+# --- Physics ---
+https://www.quantamagazine.org/feed
+
+# --- Esports ---
+https://www.hltv.org/rss/news
+https://dotesports.com/feed
+https://www.dexerto.com/feed/
+
+# --- Sports (F1, Tennis, Chess) ---
+https://www.motorsport.com/rss/f1/news/
+https://www.chess.com/rss/news
+https://www.atptour.com/en/media/rss-feed/xml-feed
+
+# --- Ukraine/Russia War ---
+https://kyivindependent.com/feed/
+https://english.nv.ua/rss/all.xml
+https://www.bellingcat.com/feed/
+https://liveuamap.com/rss
+https://wartranslated.com/feed/
+
+# --- World News ---
+https://feeds.bbci.co.uk/news/world/rss.xml
+https://rss.nytimes.com/services/xml/rss/nyt/World.xml
+https://www.theguardian.com/world/rss
+
+# --- Investigative Journalism ---
+https://www.propublica.org/feeds/propublica/main
+https://www.occrp.org/en/component/banners/?task=feed&format=feed
+
+# --- Economics / Central Banks ---
+https://www.economist.com/finance-and-economics/rss.xml
+https://wolfstreet.com/feed/
+
+# --- Startups / VC ---
+https://news.crunchbase.com/feed/
+https://www.producthunt.com/feed
+https://this-week-in-startups.simplecast.com/rss
+
+# --- Indie Makers / Maker Community ---
+https://www.indiehackers.com/feed.xml
+https://makerlog.com/rss
+https://www.failory.com/feed
+
+# --- Game Dev ---
+https://www.gamedeveloper.com/rss.xml
+https://www.indiegamebusiness.com/feed
+
+# --- Tech Commentary / Newsletters ---
+https://stratechery.com/feed/
+https://www.ben-evans.com/benedictevans?format=rss

@@ -1,0 +1,48 @@
+name: Daily Digest
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # 6 AM UTC daily
+  workflow_dispatch:  # Manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL_ID: ${{ vars.GEMINI_MODEL_ID || 'gemini-3-flash-preview' }}
+        run: uv run curator-run
+
+      - name: Copy output to frontend
+        run: |
+          cp output/latest.json frontend/latest.json
+          cp output/archive.json frontend/archive.json 2>/dev/null || true
+          for f in output/2*.json; do
+            [ -f "$f" ] && cp "$f" frontend/
+          done
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/history.json output/ frontend/
+          git diff --cached --quiet || git commit -m "Daily digest $(date -u +%Y-%m-%d)"
+          git push

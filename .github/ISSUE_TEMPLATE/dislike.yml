@@ -1,0 +1,40 @@
+name: Dislike a Story
+description: Mark a story as not relevant or low quality
+title: "[Dislike] "
+labels: ["feedback:dislike"]
+body:
+  - type: input
+    id: cluster_id
+    attributes:
+      label: Cluster ID
+      description: The cluster_id from the story (found in latest.json)
+      placeholder: e.g. abc123def456
+    validations:
+      required: true
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+      description: Brief description of what you disliked
+      placeholder: e.g. Too much sports coverage
+    validations:
+      required: false
+  - type: dropdown
+    id: reason
+    attributes:
+      label: Reason
+      options:
+        - Not relevant to my interests
+        - Low quality / clickbait
+        - Duplicate of previous story
+        - Outdated information
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: comments
+    attributes:
+      label: Comments
+      description: Any additional feedback
+    validations:
+      required: false
