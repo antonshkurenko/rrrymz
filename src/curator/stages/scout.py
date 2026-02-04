@@ -116,6 +116,7 @@ class PolyglotScout:
                 logger.warning("Custom RSS feeds failed", exc_info=True)
 
         # --- Source 4: Gemini search grounding (per interest × language) ---
+        # Free on paid tier (5K/month), auto-fails gracefully on free tier
         use_grounding = True
         for interest in persona.interests:
             for lang in self._settings.scout_languages:

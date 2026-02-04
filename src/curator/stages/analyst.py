@@ -1,4 +1,4 @@
-"""Stage 4: Technical Analyst – scrape, assess depth, verify claims."""
+"""Stage 4: Technical Analyst – scrape, assess depth, verify claims (batched)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,8 @@ from curator.models import AnalysisResult, AnalystOutput, ArchitectOutput, Event
 
 logger = logging.getLogger(__name__)
 
-_MAX_SCRAPED_CHARS = 8000
+_MAX_SCRAPED_CHARS = 4000  # Reduced to fit more clusters in batch
+_MAX_SNIPPET_CHARS = 500
 
 
 def _scrape_url(url: str) -> str | None:
@@ -27,24 +28,54 @@ def _scrape_url(url: str) -> str | None:
         return None
 
 
-def _build_analysis_prompt(label: str, scraped_text: str) -> str:
-    truncated = scraped_text[:_MAX_SCRAPED_CHARS]
-    return f"""You are a technical news analyst. Analyze this article about: {label}
+def _scrape_cluster(cluster: EventCluster) -> tuple[str, bool]:
+    """Scrape best content for a cluster. Returns (text, scrape_failed)."""
+    scraped_text = _scrape_url(cluster.best_url)
+    if scraped_text:
+        return scraped_text, False
 
-Article text:
-{truncated}
+    # Fallback: try other URLs
+    for candidate in cluster.candidates:
+        if candidate.url != cluster.best_url:
+            scraped_text = _scrape_url(candidate.url)
+            if scraped_text:
+                return scraped_text, False
 
-Assess the article and return a JSON object:
+    # Final fallback: use snippets
+    snippets = " ".join(c.snippet for c in cluster.candidates if c.snippet)
+    return snippets[:_MAX_SNIPPET_CHARS] if snippets else "", True
+
+
+def _build_batch_prompt(cluster_data: list[dict]) -> str:
+    items = []
+    for cd in cluster_data:
+        text_preview = cd["text"][:2000] if cd["text"] else "No content available"
+        items.append(
+            f'[CLUSTER id="{cd["cluster_id"]}" label="{cd["label"]}"]\n{text_preview}\n[/CLUSTER]'
+        )
+    items_str = "\n\n".join(items)
+
+    return f"""You are a technical news analyst. Analyze each news cluster below.
+
+{items_str}
+
+For EACH cluster, assess and return a JSON object:
 {{
-  "knowledge_depth": 7,
-  "key_facts": ["fact 1", "fact 2", "fact 3"],
-  "claims_verified": true
+  "analyses": [
+    {{
+      "cluster_id": "the cluster id",
+      "knowledge_depth": 7,
+      "key_facts": ["fact 1", "fact 2", "fact 3"],
+      "claims_verified": true
+    }}
+  ]
 }}
 
-- knowledge_depth: 1-10, how much substantive new information the article provides
-- key_facts: 3-5 most important factual claims from the article
-- claims_verified: true if the key facts are internally consistent and supported
-- Return valid JSON only."""
+- knowledge_depth: 1-10, how much substantive new information
+- key_facts: 3-5 most important factual claims
+- claims_verified: true if facts are internally consistent
+
+Return valid JSON with exactly {len(cluster_data)} analyses, one per cluster."""
 
 
 class TechnicalAnalyst:
@@ -52,82 +83,70 @@ class TechnicalAnalyst:
         self._client = client
 
     def run(self, architect_output: ArchitectOutput) -> AnalystOutput:
+        clusters = architect_output.clusters
+        if not clusters:
+            return AnalystOutput(analyses=[], api_calls=0)
+
+        # Step 1: Scrape all clusters (no API calls)
+        cluster_data: list[dict] = []
+        for cluster in clusters:
+            text, scrape_failed = _scrape_cluster(cluster)
+            cluster_data.append({
+                "cluster_id": cluster.cluster_id,
+                "label": cluster.label,
+                "best_url": cluster.best_url,
+                "text": text,
+                "scrape_failed": scrape_failed,
+            })
+
+        logger.info("Analyst: scraped %d clusters", len(cluster_data))
+
+        # Step 2: Batch analyze all clusters in one API call
+        prompt = _build_batch_prompt(cluster_data)
+        api_calls = 0
+
+        try:
+            from pydantic import BaseModel, Field
+
+            class ClusterAnalysis(BaseModel):
+                cluster_id: str = ""
+                knowledge_depth: int = 5
+                key_facts: list[str] = Field(default_factory=list)
+                claims_verified: bool = False
+
+            class BatchAnalysisResponse(BaseModel):
+                analyses: list[ClusterAnalysis] = Field(default_factory=list)
+
+            result = self._client.generate(prompt, response_model=BatchAnalysisResponse)
+            api_calls += 1
+
+            # Build lookup from response
+            response_map = {}
+            if isinstance(result, BatchAnalysisResponse):
+                for a in result.analyses:
+                    response_map[a.cluster_id] = a
+
+        except Exception:
+            logger.exception("Batch analysis failed")
+            api_calls += 1
+            response_map = {}
+
+        # Step 3: Combine scraped data with analysis results
         analyses: list[AnalysisResult] = []
-        api_calls = 0
+        for cd in cluster_data:
+            analysis = response_map.get(cd["cluster_id"])
+            analyses.append(
+                AnalysisResult(
+                    cluster_id=cd["cluster_id"],
+                    label=cd["label"],
+                    best_url=cd["best_url"],
+                    scraped_text=cd["text"][:2000] if cd["text"] else "",
+                    knowledge_depth=analysis.knowledge_depth if analysis else 1,
+                    key_facts=analysis.key_facts if analysis else [],
+                    claims_verified=analysis.claims_verified if analysis else False,
+                    scrape_failed=cd["scrape_failed"],
+                )
+            )
 
-        for cluster in architect_output.clusters:
-            analysis = self._analyze_cluster(cluster)
-            api_calls += analysis.get("api_calls", 0)
-            analyses.append(analysis["result"])
-
-        logger.info("Analyst: analyzed %d clusters", len(analyses))
+        logger.info("Analyst: analyzed %d clusters in 1 API call", len(analyses))
         return AnalystOutput(analyses=analyses, api_calls=api_calls)
-
-    def _analyze_cluster(self, cluster: EventCluster) -> dict:
-        # Try scraping the best URL
-        scraped_text = _scrape_url(cluster.best_url)
-        scrape_failed = scraped_text is None
-
-        # Fallback: try other URLs in the cluster
-        if scrape_failed:
-            for candidate in cluster.candidates:
-                if candidate.url != cluster.best_url:
-                    scraped_text = _scrape_url(candidate.url)
-                    if scraped_text:
-                        scrape_failed = False
-                        break
-
-        if scraped_text is None:
-            # Use snippets as fallback content
-            scraped_text = " ".join(c.snippet for c in cluster.candidates if c.snippet)
-            scrape_failed = True
-
-        api_calls = 0
-
-        if scraped_text.strip():
-            prompt = _build_analysis_prompt(cluster.label, scraped_text)
-            try:
-                from pydantic import BaseModel, Field
-
-                class AnalysisResponse(BaseModel):
-                    knowledge_depth: int = 5
-                    key_facts: list[str] = Field(default_factory=list)
-                    claims_verified: bool = False
-
-                result = self._client.generate(prompt, response_model=AnalysisResponse)
-                api_calls += 1
-
-                return {
-                    "result": AnalysisResult(
-                        cluster_id=cluster.cluster_id,
-                        label=cluster.label,
-                        best_url=cluster.best_url,
-                        scraped_text=scraped_text[:2000],
-                        knowledge_depth=result.knowledge_depth
-                        if isinstance(result, AnalysisResponse)
-                        else 5,
-                        key_facts=result.key_facts if isinstance(result, AnalysisResponse) else [],
-                        claims_verified=result.claims_verified
-                        if isinstance(result, AnalysisResponse)
-                        else False,
-                        scrape_failed=scrape_failed,
-                    ),
-                    "api_calls": api_calls,
-                }
-            except Exception:
-                logger.exception("Analysis failed for cluster %s", cluster.cluster_id)
-                api_calls += 1
-
-        return {
-            "result": AnalysisResult(
-                cluster_id=cluster.cluster_id,
-                label=cluster.label,
-                best_url=cluster.best_url,
-                scraped_text=scraped_text[:2000] if scraped_text else "",
-                knowledge_depth=1,
-                key_facts=[],
-                claims_verified=False,
-                scrape_failed=scrape_failed,
-            ),
-            "api_calls": api_calls,
-        }
